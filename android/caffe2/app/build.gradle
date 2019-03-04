@@ -4,10 +4,12 @@ project.ext.ASSET_DIR = projectDir.toString() + '/src/main/assets'
 
 assert file(project.ext.ASSET_DIR + "/graph.lite").exists()
 assert file(project.ext.ASSET_DIR + "/labels.txt").exists()
+assert file(project.ext.ASSET_DIR + "/init_net.pb").exists()
+assert file(project.ext.ASSET_DIR + "/predict_net.pb").exists()
 
 android {
     compileSdkVersion 26
-    buildToolsVersion '27.0.3'
+    //buildToolsVersion '27.0.3'
     defaultConfig {
         applicationId "android.example.com.tflitecamerademo"
         minSdkVersion 21
@@ -15,6 +17,11 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        ndk {
+            // Tells Gradle to build outputs for the following ABIs and package
+            // them into your APK.
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+        }
     }
     lintOptions {
         abortOnError false
@@ -34,6 +41,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    packagingOptions{
+        doNotStrip '*/mips/*.so'
+        doNotStrip '*/mips64/*.so'
+    }
 }
 
 repositories {
@@ -44,17 +55,31 @@ repositories {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+    //compile fileTree(dir: 'libs', include: ['*.jar'])
+    //androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+    //    exclude group: 'com.android.support', module: 'support-annotations'
+    //})
+    //compile 'com.android.support:appcompat-v7:25.2.0'
+    //compile 'com.android.support.constraint:constraint-layout:1.1.0'
+    //compile 'com.android.support:design:25.2.0'
+    //compile 'com.android.support:support-annotations:25.3.1'
+    //compile 'com.android.support:support-v13:25.2.0'
+
+    //compile 'org.tensorflow:tensorflow-lite:+'
+
+    //testCompile 'junit:junit:4.12'
+
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:25.2.0'
-    compile 'com.android.support.constraint:constraint-layout:1.1.0'
-    compile 'com.android.support:design:25.2.0'
-    compile 'com.android.support:support-annotations:25.3.1'
-    compile 'com.android.support:support-v13:25.2.0'
+    implementation 'com.android.support:appcompat-v7:25.2.0'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.0'
+    implementation 'com.android.support:design:25.2.0'
+    implementation 'com.android.support:support-annotations:25.3.1'
+    implementation 'com.android.support:support-v13:25.2.0'
 
-    compile 'org.tensorflow:tensorflow-lite:+'
+    implementation 'org.tensorflow:tensorflow-lite:+'
 
-    testCompile 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
 }

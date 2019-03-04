@@ -17,13 +17,19 @@ package com.example.android.tflitecamerademo;
 
 import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
@@ -34,7 +40,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import org.tensorflow.lite.Interpreter;
+//import org.tensorflow.lite.Interpreter;
+import caffe2.Caffe2;
+import caffe2.PredictorData;
+
 
 /** Classifies images with Tensorflow Lite. */
 public class ImageClassifier {
@@ -43,10 +52,12 @@ public class ImageClassifier {
   private static final String TAG = "TfLiteCameraDemo";
 
   /** Name of the model file stored in Assets. */
-  private static final String MODEL_PATH = "graph.lite";
+  private static final String INIT_MODEL_PATH = "init_net.pb";
+  private static final String PREDICT_MODEL_PATH = "predict_net.pb";
 
   /** Name of the label file stored in Assets. */
   private static final String LABEL_PATH = "labels.txt";
+  public String LABEL_PATH_LOCAL;
 
   /** Number of results to show in the UI. */
   private static final int RESULTS_TO_SHOW = 3;
@@ -67,7 +78,8 @@ public class ImageClassifier {
   private int[] intValues = new int[DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y];
 
   /** An instance of the driver class to run model inference with Tensorflow Lite. */
-  private Interpreter tflite;
+  //private Interpreter tflite;
+  private PredictorData mypredictor;
 
   /** Labels corresponding to the output of the vision model. */
   private List<String> labelList;
@@ -92,7 +104,7 @@ public class ImageClassifier {
             }
           });
 
-  /** Initializes an {@code ImageClassifier}. */
+  /* DEMO: Initializes an {@code ImageClassifier}.
   ImageClassifier(Activity activity) throws IOException {
     tflite = new Interpreter(loadModelFile(activity));
     labelList = loadLabelList(activity);
@@ -103,9 +115,88 @@ public class ImageClassifier {
     labelProbArray = new float[1][labelList.size()];
     filterLabelProbArray = new float[FILTER_STAGES][labelList.size()];
     Log.d(TAG, "Created a Tensorflow Lite Image Classifier.");
+  }*/
+
+  ImageClassifier(Activity activity) throws IOException {
+    try{
+
+      // TRY temporary storage
+      AssetManager assetManager = activity.getAssets();
+      String abi = Build.CPU_ABI;
+      String filesDir = activity.getFilesDir().getPath();
+      String testPathInit = abi + "/" + INIT_MODEL_PATH;
+      String testPathPredict = abi + "/" + PREDICT_MODEL_PATH;
+      String testPathLabels = abi + "/" + LABEL_PATH;
+
+      InputStream inStreamInit = assetManager.open(INIT_MODEL_PATH);
+      Log.d(TAG, "Opened" + INIT_MODEL_PATH);
+      InputStream inStreamPredict = assetManager.open(PREDICT_MODEL_PATH);
+      Log.d(TAG, "Opened" + PREDICT_MODEL_PATH);
+      InputStream inStreamLabels = assetManager.open(LABEL_PATH);
+      Log.d(TAG, "Opened" + LABEL_PATH);
+
+      // Copy this file to an executable location
+      File outFileInit = new File(filesDir, INIT_MODEL_PATH);
+      File outFilePredict = new File(filesDir, PREDICT_MODEL_PATH);
+      File outFileLabels = new File(filesDir, LABEL_PATH);
+
+      OutputStream outStreamInit = new FileOutputStream(outFileInit);
+      OutputStream outStreamPredict = new FileOutputStream(outFilePredict);
+      OutputStream outStreamLabels = new FileOutputStream(outFileLabels);
+
+      byte[] bufferInit = new byte[1024];
+      int readInit;
+      while ((readInit = inStreamInit.read(bufferInit)) != -1){
+        outStreamInit.write(bufferInit, 0, readInit);
+      }
+      byte[] bufferPredict = new byte[1024];
+      int readPredict;
+      while ((readPredict = inStreamPredict.read(bufferPredict)) != -1){
+        outStreamPredict.write(bufferPredict, 0, readPredict);
+      }
+      byte[] bufferLabels = new byte[1024];
+      int readLabels;
+      while ((readLabels = inStreamLabels.read(bufferLabels)) != -1){
+        outStreamLabels.write(bufferLabels, 0, readLabels);
+      }
+
+      inStreamInit.close();
+      outStreamInit.flush();
+      outStreamInit.close();
+      Log.d(TAG, "Copied" + INIT_MODEL_PATH + " to " + filesDir);
+      String tempPathInit = filesDir + "/" + INIT_MODEL_PATH;
+
+      inStreamPredict.close();
+      outStreamPredict.flush();
+      outStreamPredict.close();
+      Log.d(TAG, "Copied" + PREDICT_MODEL_PATH + " to " + filesDir);
+      String tempPathPredict = filesDir + "/" + PREDICT_MODEL_PATH;
+
+      inStreamLabels.close();
+      outStreamLabels.flush();
+      outStreamLabels.close();
+      Log.d(TAG, "Copied" + LABEL_PATH + " to " + filesDir);
+      String tempPathLabels = filesDir + "/" + LABEL_PATH;
+      LABEL_PATH_LOCAL = tempPathLabels;
+
+      mypredictor = Caffe2.new_(tempPathInit, tempPathPredict, Caffe2.CPUMode, 1);
+      if(mypredictor == null){
+        Log.e(TAG, "Caffe2.new_ returning null model");
+      }
+    }catch (Exception e){
+      e.printStackTrace();
+    }
+    labelList = loadLabelList(activity);
+    imgData =
+            ByteBuffer.allocateDirect(
+                    4 * DIM_BATCH_SIZE * DIM_IMG_SIZE_X * DIM_IMG_SIZE_Y * DIM_PIXEL_SIZE);
+    imgData.order(ByteOrder.nativeOrder());
+    labelProbArray = new float[1][labelList.size()];
+    filterLabelProbArray = new float[FILTER_STAGES][labelList.size()];
+    Log.d(TAG, "Created a Caffe2 Image Classifier.");
   }
 
-  /** Classifies a frame from the preview stream. */
+  /* DEMO: Classifies a frame from the preview stream.
   String classifyFrame(Bitmap bitmap) {
     if (tflite == null) {
       Log.e(TAG, "Image classifier has not been initialized; Skipped.");
@@ -123,6 +214,66 @@ public class ImageClassifier {
 
     // print the results
     String textToShow = printTopKLabels();
+    textToShow = Long.toString(endTime - startTime) + "ms" + textToShow;
+    return textToShow;
+  }*/
+
+  String classifyFrame(Bitmap bitmap) {
+    if (mypredictor == null) {
+      Log.e(TAG, "Image classifier has not been initialized; Skipped.");
+      return "Uninitialized Classifier.";
+    }
+    // read bitmapped frame into imgData (ByteBuffer)
+    convertBitmapToByteBuffer(bitmap);
+    // convert ByteBuffer[] into byte[]
+    // as gomobile only supports []byte
+    imgData.rewind();
+    byte[] imgDataBytes = new byte[imgData.remaining()];
+    try {
+
+      // DEBUG - NOT PRINTING => meaning there is no corruption of data
+      if(imgData.getFloat(2) == 0.0){
+        Log.d(TAG,"imgData is null - WHY ?????");
+      }
+
+      imgData.get(imgDataBytes, 0, imgDataBytes.length);
+
+      // DEBUG - NOT PRINTING => meaning imgDataBytes were transferred correctly
+      if(imgDataBytes.length != 0){
+        Log.d(TAG,"imgDataBytes length = " + Float.toString(imgDataBytes.length));
+      }
+
+    }catch (Exception e){
+      e.printStackTrace();
+    }
+
+    // Here's where the magic happens!!!
+    long startTime = SystemClock.uptimeMillis();
+    // DEBUG - COMMENTING BOTH predict() and readPredictionOutput()
+    // does not result in an error
+    // try uncommenting one of them (first one)
+    try {
+      Caffe2.predict(mypredictor, imgDataBytes);
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+    long endTime = SystemClock.uptimeMillis();
+    Log.d(TAG, "Timecost to run model inference: " + Long.toString(endTime - startTime));
+
+    // smooth the results
+    //applyFilter();
+
+    // print the results
+    //String textToShow = printTopKLabels();
+    String labelOutput = "";
+    try {
+      Log.d(TAG, "CALLING readPredictedOutput");
+      labelOutput = Caffe2.readPredictionOutput(mypredictor, LABEL_PATH_LOCAL);
+    }catch(Exception e){
+      e.printStackTrace();
+    }
+
+    String textToShow = " labelOutput: " + labelOutput;
     textToShow = Long.toString(endTime - startTime) + "ms" + textToShow;
     return textToShow;
   }
@@ -151,13 +302,17 @@ public class ImageClassifier {
     }
   }
 
-  /** Closes tflite to release resources. */
+  /* DEMO: Closes tflite to release resources.
   public void close() {
     tflite.close();
     tflite = null;
+  }*/
+
+  public void close() {
+    Caffe2.close(mypredictor);
   }
 
-  /** Reads label list from Assets. */
+  /* DEMO: Reads label list from Assets. */
   private List<String> loadLabelList(Activity activity) throws IOException {
     List<String> labelList = new ArrayList<String>();
     BufferedReader reader =
@@ -170,7 +325,7 @@ public class ImageClassifier {
     return labelList;
   }
 
-  /** Memory-map the model file in Assets. */
+  /* DEMO: Memory-map the model file in Assets.
   private MappedByteBuffer loadModelFile(Activity activity) throws IOException {
     AssetFileDescriptor fileDescriptor = activity.getAssets().openFd(MODEL_PATH);
     FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
@@ -178,7 +333,7 @@ public class ImageClassifier {
     long startOffset = fileDescriptor.getStartOffset();
     long declaredLength = fileDescriptor.getDeclaredLength();
     return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-  }
+  }*/
 
   /** Writes Image data into a {@code ByteBuffer}. */
   private void convertBitmapToByteBuffer(Bitmap bitmap) {

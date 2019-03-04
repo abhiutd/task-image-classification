@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: __local_aars__:/Users/abhiutd/.gradle/caches/transforms-1/files-1.1/gocaffe2.aar/56726b99f26fa1d13c0554544b7c8bdb:unspecified@jar">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/gocaffe2.aar/56726b99f26fa1d13c0554544b7c8bdb/res" />
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-1/files-1.1/gocaffe2.aar/56726b99f26fa1d13c0554544b7c8bdb/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$PROJECT_DIR$/app/libs/gocaffe2-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
